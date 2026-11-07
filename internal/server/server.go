@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,6 +21,12 @@ type Server struct {
 	port int
 	hub  Hub
 	db   database.Service
+}
+
+type Message struct {
+	Name    string    `json:"name"`
+	Message string    `json:"message"`
+	Time    time.Time `json:"time"`
 }
 
 const (
@@ -79,6 +86,7 @@ func (h *Hub) run() {
 type Client struct {
 	hub  *Hub
 	conn *websocket.Conn
+	name string
 	send chan []byte
 }
 
@@ -104,7 +112,18 @@ func (c *Client) readPump() {
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, []byte{'\n'}, []byte{' '}, -1))
-		c.hub.brodcast <- message
+		jsonpacket := &Message{
+			Name:    c.name,
+			Message: string(message),
+			Time:    time.Now(),
+		}
+		jsonbytes, err := json.Marshal(jsonpacket)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		c.hub.brodcast <- jsonbytes
 	}
 }
 
