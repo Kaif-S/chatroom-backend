@@ -23,8 +23,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.GET("/health", s.healthHandler)
 
 	r.GET("/ws", func(ctx *gin.Context) {
-		serveWs(&s.hub, ctx.Writer, ctx.Request, ctx.Query("name"))
+		serveWs(&s.hubs[0], ctx.Writer, ctx.Request, ctx.Query("name"))
 	})
+
+	// r.GET("/ws/:hubidentifier", func(ctx *gin.Context) {
+	// 	serveWs(&s.hub, ctx.Writer, ctx.Request, ctx.Query("name"))
+	// })
 
 	return r
 }

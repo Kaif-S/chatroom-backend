@@ -19,7 +19,7 @@ import (
 
 type Server struct {
 	port int
-	hub  Hub
+	hubs []Hub
 	db   database.Service
 }
 
@@ -27,6 +27,7 @@ type Message struct {
 	Name    string    `json:"name"`
 	Message string    `json:"message"`
 	Time    time.Time `json:"time"`
+	HubName string    `json:"hubname"`
 }
 
 const (
@@ -41,21 +42,41 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
+
+	//Maximum time a hub can persists without any memebers except DEFAULT hub
+
 )
 
 type Hub struct {
-	clients    map[*Client]bool
-	brodcast   chan []byte
-	register   chan *Client
-	unregister chan *Client
+	clients      map[*Client]bool
+	brodcast     chan []byte
+	register     chan *Client
+	unregister   chan *Client
+	identifier   string
+	name         string
+	isInvincible bool
 }
 
+func DefaultHub() *Hub {
+	return &Hub{
+		clients:      make(map[*Client]bool),
+		brodcast:     make(chan []byte),
+		register:     make(chan *Client),
+		unregister:   make(chan *Client),
+		identifier:   "",
+		name:         "Default",
+		isInvincible: true,
+	}
+}
 func newHub() *Hub {
 	return &Hub{
-		clients:    make(map[*Client]bool),
-		brodcast:   make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		clients:      make(map[*Client]bool),
+		brodcast:     make(chan []byte),
+		register:     make(chan *Client),
+		unregister:   make(chan *Client),
+		isInvincible: false,
+		identifier:   "random", //changes
+		name:         "A hub",
 	}
 }
 func (h *Hub) run() {
@@ -69,6 +90,10 @@ func (h *Hub) run() {
 				delete(h.clients, client)
 				close(client.send)
 			}
+			if len(h.clients) == 0 && !h.isInvincible {
+				log.Println("Hub is empty closing the hub : ", h.name)
+				return
+			}
 
 		case message := <-h.brodcast:
 			for client := range h.clients {
@@ -79,6 +104,7 @@ func (h *Hub) run() {
 					delete(h.clients, client)
 				}
 			}
+
 		}
 	}
 }
@@ -116,6 +142,7 @@ func (c *Client) readPump() {
 			Name:    c.name,
 			Message: string(message),
 			Time:    time.Now(),
+			HubName: c.hub.name,
 		}
 		jsonbytes, err := json.Marshal(jsonpacket)
 		if err != nil {
@@ -177,11 +204,11 @@ var upgrader = websocket.Upgrader{
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	hub := newHub()
+	hub := DefaultHub()
 	go hub.run()
 	NewServer := &Server{
 		port: port,
-		hub:  *hub,
+		hubs: []Hub{*hub},
 		db:   database.New(),
 	}
 
