@@ -52,34 +52,35 @@ type Hub struct {
 	brodcast     chan []byte
 	register     chan *Client
 	unregister   chan *Client
-	identifier   string
+	identifier   int64
 	name         string
 	isInvincible bool
 }
 
-func DefaultHub() *Hub {
+func defaultHub() *Hub {
 	return &Hub{
 		clients:      make(map[*Client]bool),
 		brodcast:     make(chan []byte),
 		register:     make(chan *Client),
 		unregister:   make(chan *Client),
-		identifier:   "",
+		identifier:   int64(0),
 		name:         "Default",
 		isInvincible: true,
 	}
 }
-func newHub() *Hub {
+func NewHub(name string, identifier int64) *Hub {
 	return &Hub{
 		clients:      make(map[*Client]bool),
 		brodcast:     make(chan []byte),
 		register:     make(chan *Client),
 		unregister:   make(chan *Client),
 		isInvincible: false,
-		identifier:   "random", //changes
-		name:         "A hub",
+		identifier:   identifier, //changes
+		name:         name,
 	}
 }
 func (h *Hub) run() {
+	log.Println("hub running starting of name : ", h.name)
 	for {
 		select {
 		case client := <-h.register:
@@ -204,7 +205,7 @@ var upgrader = websocket.Upgrader{
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	hub := DefaultHub()
+	hub := defaultHub()
 	go hub.run()
 	NewServer := &Server{
 		port: port,
