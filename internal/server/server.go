@@ -198,9 +198,19 @@ func (c *Client) writePump() {
 
 }
 
+var allowedOrigins = map[string]bool{
+	"http://localhost:5173":         true,
+	"https://dashboard.example.com": true,
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		// Check if the request origin exists in your trusted map
+		return allowedOrigins[origin]
+	},
 }
 
 func NewServer() *http.Server {
